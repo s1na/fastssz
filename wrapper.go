@@ -11,7 +11,17 @@ func (w *Wrapper) Indx() int {
 }
 
 func (w *Wrapper) AddBytes(b []byte) {
-	w.AddNode(LeafFromBytes(b))
+	if len(b) <= 32 {
+		w.AddNode(LeafFromBytes(b))
+	} else {
+		num := (len(b) + 31) / 32
+		i := 0
+		for i < num-1 {
+			w.AddNode(LeafFromBytes(b[i*32 : (i+1)*32]))
+			i++
+		}
+		w.AddNode(LeafFromBytes(b[i*32:]))
+	}
 }
 
 func (w *Wrapper) AddUint64(i uint64) {

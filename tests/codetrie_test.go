@@ -252,6 +252,28 @@ func TestChunkTree(t *testing.T) {
 	}
 }
 
+func TestChunk40Tree(t *testing.T) {
+	codeHex := "606060606060606060606060606060606060606060606060606060606060606060606060"
+	code, _ := hex.DecodeString(codeHex)
+	codePadded := make([]byte, 40)
+	copy(codePadded[:len(code)], code[:])
+	chunk := &Chunk40{FIO: 0, Code: codePadded[:]}
+	chunkRoot, err := chunk.HashTreeRoot()
+	if err != nil {
+		t.Errorf("Failed to hash chunk to root: %v\n", err)
+	}
+
+	tree, err := chunk.GetTree()
+	if err != nil {
+		t.Errorf("Failed to construct tree for chunk: %v\n", err)
+	}
+
+	r := tree.Hash()
+	if !bytes.Equal(r, chunkRoot[:]) {
+		t.Errorf("Computed incorrect root. Expected %s, got %s\n", hex.EncodeToString(chunkRoot[:]), hex.EncodeToString(r))
+	}
+}
+
 func TestSmallCodeTrieTree(t *testing.T) {
 	code := []byte{0x60, 0x01}
 	codeHash := sha256.Sum256(code)

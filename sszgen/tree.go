@@ -78,12 +78,25 @@ func (v *Value) getTree() string {
 			name += "[:]"
 		}
 
-		tmpl := `{{.validate}}w.AddBytes(::.{{.name}})`
-		return execTmpl(tmpl, map[string]interface{}{
-			"validate": v.validate(),
-			"name":     name,
-			"size":     v.s,
-		})
+		if v.s <= 32 {
+			tmpl := `{{.validate}}w.AddBytes(::.{{.name}})`
+			return execTmpl(tmpl, map[string]interface{}{
+				"validate": v.validate(),
+				"name":     name,
+				"size":     v.s,
+			})
+		} else {
+			tmpl := `{{.validate}}{
+				subIdx := w.Indx()
+				w.AddBytes(::.{{.name}})
+				w.Commit(subIdx)
+			}`
+			return execTmpl(tmpl, map[string]interface{}{
+				"validate": v.validate(),
+				"name":     v.name,
+				"num":      v.m,
+			})
+		}
 
 	case TypeUint:
 		var name string

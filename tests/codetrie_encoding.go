@@ -215,6 +215,107 @@ func (c *Chunk) GetTree() (*ssz.Node, error) {
 	return w.Node(), nil
 }
 
+// MarshalSSZ ssz marshals the Chunk40 object
+func (c *Chunk40) MarshalSSZ() ([]byte, error) {
+	return ssz.MarshalSSZ(c)
+}
+
+// MarshalSSZTo ssz marshals the Chunk40 object to a target array
+func (c *Chunk40) MarshalSSZTo(buf []byte) (dst []byte, err error) {
+	dst = buf
+
+	// Field (0) 'FIO'
+	dst = ssz.MarshalUint8(dst, c.FIO)
+
+	// Field (1) 'Code'
+	if len(c.Code) != 40 {
+		err = ssz.ErrBytesLength
+		return
+	}
+	dst = append(dst, c.Code...)
+
+	return
+}
+
+// UnmarshalSSZ ssz unmarshals the Chunk40 object
+func (c *Chunk40) UnmarshalSSZ(buf []byte) error {
+	var err error
+	size := uint64(len(buf))
+	if size != 41 {
+		return ssz.ErrSize
+	}
+
+	// Field (0) 'FIO'
+	c.FIO = ssz.UnmarshallUint8(buf[0:1])
+
+	// Field (1) 'Code'
+	if cap(c.Code) == 0 {
+		c.Code = make([]byte, 0, len(buf[1:41]))
+	}
+	c.Code = append(c.Code, buf[1:41]...)
+
+	return err
+}
+
+// SizeSSZ returns the ssz encoded size in bytes for the Chunk40 object
+func (c *Chunk40) SizeSSZ() (size int) {
+	size = 41
+	return
+}
+
+// HashTreeRoot ssz hashes the Chunk40 object
+func (c *Chunk40) HashTreeRoot() ([32]byte, error) {
+	return ssz.HashWithDefaultHasher(c)
+}
+
+// HashTreeRootWith ssz hashes the Chunk40 object with a hasher
+func (c *Chunk40) HashTreeRootWith(hh *ssz.Hasher) (err error) {
+	indx := hh.Index()
+
+	// Field (0) 'FIO'
+	hh.PutUint8(c.FIO)
+
+	// Field (1) 'Code'
+	if len(c.Code) != 40 {
+		err = ssz.ErrBytesLength
+		return
+	}
+	hh.PutBytes(c.Code)
+
+	hh.Merkleize(indx)
+	return
+}
+
+// GetTree returns tree-backing for the Chunk40 object
+func (c *Chunk40) GetTreeWithWrapper(w *ssz.Wrapper) (err error) {
+	indx := w.Indx()
+
+	// Field (0) 'FIO'
+	w.AddUint8(c.FIO)
+
+	// Field (1) 'Code'
+	if len(c.Code) != 40 {
+		err = ssz.ErrBytesLength
+		return
+	}
+	{
+		subIdx := w.Indx()
+		w.AddBytes(c.Code)
+		w.Commit(subIdx)
+	}
+
+	w.Commit(indx)
+	return nil
+}
+
+func (c *Chunk40) GetTree() (*ssz.Node, error) {
+	w := &ssz.Wrapper{}
+	if err := c.GetTreeWithWrapper(w); err != nil {
+		return nil, err
+	}
+	return w.Node(), nil
+}
+
 // MarshalSSZ ssz marshals the CodeTrieSmall object
 func (c *CodeTrieSmall) MarshalSSZ() ([]byte, error) {
 	return ssz.MarshalSSZ(c)
@@ -534,6 +635,169 @@ func (c *CodeTrieBig) GetTreeWithWrapper(w *ssz.Wrapper) (err error) {
 }
 
 func (c *CodeTrieBig) GetTree() (*ssz.Node, error) {
+	w := &ssz.Wrapper{}
+	if err := c.GetTreeWithWrapper(w); err != nil {
+		return nil, err
+	}
+	return w.Node(), nil
+}
+
+// MarshalSSZ ssz marshals the CodeTrie40 object
+func (c *CodeTrie40) MarshalSSZ() ([]byte, error) {
+	return ssz.MarshalSSZ(c)
+}
+
+// MarshalSSZTo ssz marshals the CodeTrie40 object to a target array
+func (c *CodeTrie40) MarshalSSZTo(buf []byte) (dst []byte, err error) {
+	dst = buf
+	offset := int(39)
+
+	// Field (0) 'Metadata'
+	if c.Metadata == nil {
+		c.Metadata = new(Metadata)
+	}
+	if dst, err = c.Metadata.MarshalSSZTo(dst); err != nil {
+		return
+	}
+
+	// Offset (1) 'Chunks'
+	dst = ssz.WriteOffset(dst, offset)
+	offset += len(c.Chunks) * 41
+
+	// Field (1) 'Chunks'
+	if len(c.Chunks) > 1024 {
+		err = ssz.ErrListTooBig
+		return
+	}
+	for ii := 0; ii < len(c.Chunks); ii++ {
+		if dst, err = c.Chunks[ii].MarshalSSZTo(dst); err != nil {
+			return
+		}
+	}
+
+	return
+}
+
+// UnmarshalSSZ ssz unmarshals the CodeTrie40 object
+func (c *CodeTrie40) UnmarshalSSZ(buf []byte) error {
+	var err error
+	size := uint64(len(buf))
+	if size < 39 {
+		return ssz.ErrSize
+	}
+
+	tail := buf
+	var o1 uint64
+
+	// Field (0) 'Metadata'
+	if c.Metadata == nil {
+		c.Metadata = new(Metadata)
+	}
+	if err = c.Metadata.UnmarshalSSZ(buf[0:35]); err != nil {
+		return err
+	}
+
+	// Offset (1) 'Chunks'
+	if o1 = ssz.ReadOffset(buf[35:39]); o1 > size {
+		return ssz.ErrOffset
+	}
+
+	// Field (1) 'Chunks'
+	{
+		buf = tail[o1:]
+		num, err := ssz.DivideInt2(len(buf), 41, 1024)
+		if err != nil {
+			return err
+		}
+		c.Chunks = make([]*Chunk40, num)
+		for ii := 0; ii < num; ii++ {
+			if c.Chunks[ii] == nil {
+				c.Chunks[ii] = new(Chunk40)
+			}
+			if err = c.Chunks[ii].UnmarshalSSZ(buf[ii*41 : (ii+1)*41]); err != nil {
+				return err
+			}
+		}
+	}
+	return err
+}
+
+// SizeSSZ returns the ssz encoded size in bytes for the CodeTrie40 object
+func (c *CodeTrie40) SizeSSZ() (size int) {
+	size = 39
+
+	// Field (1) 'Chunks'
+	size += len(c.Chunks) * 41
+
+	return
+}
+
+// HashTreeRoot ssz hashes the CodeTrie40 object
+func (c *CodeTrie40) HashTreeRoot() ([32]byte, error) {
+	return ssz.HashWithDefaultHasher(c)
+}
+
+// HashTreeRootWith ssz hashes the CodeTrie40 object with a hasher
+func (c *CodeTrie40) HashTreeRootWith(hh *ssz.Hasher) (err error) {
+	indx := hh.Index()
+
+	// Field (0) 'Metadata'
+	if err = c.Metadata.HashTreeRootWith(hh); err != nil {
+		return
+	}
+
+	// Field (1) 'Chunks'
+	{
+		subIndx := hh.Index()
+		num := uint64(len(c.Chunks))
+		if num > 1024 {
+			err = ssz.ErrIncorrectListSize
+			return
+		}
+		for i := uint64(0); i < num; i++ {
+			if err = c.Chunks[i].HashTreeRootWith(hh); err != nil {
+				return
+			}
+		}
+		hh.MerkleizeWithMixin(subIndx, num, 1024)
+	}
+
+	hh.Merkleize(indx)
+	return
+}
+
+// GetTree returns tree-backing for the CodeTrie40 object
+func (c *CodeTrie40) GetTreeWithWrapper(w *ssz.Wrapper) (err error) {
+	indx := w.Indx()
+
+	// Field (0) 'Metadata'
+	if err := c.Metadata.GetTreeWithWrapper(w); err != nil {
+		return err
+	}
+
+	// Field (1) 'Chunks'
+	{
+		subIdx := w.Indx()
+		num := len(c.Chunks)
+		if num > 1024 {
+			err = ssz.ErrIncorrectListSize
+			return err
+		}
+		for i := 0; i < num; i++ {
+			n, err := c.Chunks[i].GetTree()
+			if err != nil {
+				return err
+			}
+			w.AddNode(n)
+		}
+		w.CommitWithMixin(subIdx, num, 1024)
+	}
+
+	w.Commit(indx)
+	return nil
+}
+
+func (c *CodeTrie40) GetTree() (*ssz.Node, error) {
 	w := &ssz.Wrapper{}
 	if err := c.GetTreeWithWrapper(w); err != nil {
 		return nil, err
